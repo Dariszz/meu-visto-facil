@@ -1,9 +1,10 @@
 // api/generate-checklist.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getGenAI, extractText, stripFences, errorRes } from './_gemini.js';
+import { guardLinkIfOfficial } from './_link-guard.js';
 
 const jsonShape = `
-Responda APENAS com um JSON válido, sem cercas de código, no formato:
+Responda APENAS com um JSON válido, sem cercas, no formato:
 {
   "title": "string",
   "introduction": "string",
@@ -11,12 +12,7 @@ Responda APENAS com um JSON válido, sem cercas de código, no formato:
     {
       "category": "string",
       "items": [
-        {
-          "id": "kebab-case",
-          "task": "string",
-          "details": "string",
-          "link": "string (opcional)"
-        }
+        { "id": "kebab-case", "task": "string", "details": "string", "link": "string (opcional)" }
       ]
     }
   ],
@@ -26,31 +22,31 @@ Responda APENAS com um JSON válido, sem cercas de código, no formato:
 
 function getContextForCountry(countryName: string): string {
   const c = countryName.toLowerCase();
-  if (c.includes('portugal')) {
-    return `
-- Lei nº 61/2025 extinguiu "manifestação de interesse".
-- Procura de trabalho genérico substituída por visto para procura de trabalho qualificado (aguardando regulamentação).
-- EES em vigor; registro biométrico na primeira entrada.`;
-  }
-  if (c.includes('irlanda')) {
-    return `
-- Desde 28/04/2025, Employment Permits no novo portal DETE.
-- Obter Employment Permit antes do visto de longa duração.
-- Registro inicial em Dublin exige agendamento online.`;
-  }
-  if (c.includes('alemanha')) {
-    return `
-- Fachkräfteeinwanderungsgesetz implementada.
-- Chancenkarte (cartão de oportunidade) desde 01/06/2024.
-- "Anerkennung" segue crucial; EU Blue Card tem piso salarial anual.`;
-  }
-  if (c.includes('austrália') || c.includes('australia')) {
-    return `
-- SkillSelect baseado em pontos; listas de ocupações variam.
-- Skills Assessment exigido para muitos vistos.
-- Ênfase em migração para áreas regionais.`;
-  }
+  if (c.includes('portugal')) return `- Lei nº 61/2025 extinguiu "manifestação de interesse". - Visto de procura de trabalho qualificado aguarda regulação. - EES em vigor.`;
+  if (c.includes('irlanda')) return `- 28/04/2025: Employment Permits no novo portal DETE. - Obter Employment Permit antes do visto. - Agendamento online para registro em Dublin.`;
+  if (c.includes('alemanha')) return `- Fachkräfteeinwanderungsgesetz implementada. - Chancenkarte desde 01/06/2024. - Anerkennung e piso do EU Blue Card.`;
+  if (c.includes('austrália') || c.includes('australia')) return `- SkillSelect (pontos). - Skills Assessment comum. - Foco em áreas regionais.`;
   return '';
+}
+
+// Sanitiza os links do checklist para apenas manter oficiais válidos
+async function sanitizeChecklistLinks(countryName: string, checklist: any): Promise<any> {
+  if (!Array.isArray(checklist?.categories)) return checklist;
+  const cats = await Promise.all(
+    checklist.categories.map(async (cat: any) => {
+      if (!Array.isArray(cat?.items)) return cat;
+      const items = await Promise.all(
+        cat.items.map(async (it: any) => {
+          if (!it?.link) return it;
+          const safe = await guardLinkIfOfficial(countryName, it.link);
+          // Se não for oficial/ok, removemos o link (evita 404 ou phishing)
+          return { ...it, link: safe || undefined };
+        })
+      );
+      return { ...cat, items };
+    })
+  );
+  return { ...checklist, categories: cats };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -61,15 +57,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const context = getContextForCountry(destinationCountry);
     const prompt = `
-Aja como consultor de imigração especialista e gere um checklist passo a passo (pt-BR) para um brasileiro aplicando a "${visaType}" em "${destinationCountry}".
+Aja como consultor de imigração e gere um checklist (pt-BR) para "${visaType}" em "${destinationCountry}".
 
-Contexto crítico:
+Contexto:
 ${context}
 
 Regras:
 1) Inclua links oficiais diretos quando necessário (campo "link").
-2) Responda apenas com JSON válido (sem markdown) seguindo o formato a seguir.
-3) Seja claro e objetivo, mas completo.
+2) Apenas JSON válido, seguindo o formato abaixo.
 
 ${jsonShape}
 `;
@@ -86,8 +81,8 @@ ${jsonShape}
       return errorRes(res, 502, 'Falha ao parsear o JSON retornado pelo modelo.');
     }
 
-    // adiciona checked:false em cada item (como no client)
-    const checklist = {
+    // adiciona checked:false
+    let checklist = {
       ...parsed,
       categories: Array.isArray(parsed.categories)
         ? parsed.categories.map((cat: any) => ({
@@ -98,6 +93,9 @@ ${jsonShape}
           }))
         : [],
     };
+
+    // HIGIENIZAÇÃO: remove/ajusta links que não sejam oficiais e válidos
+    checklist = await sanitizeChecklistLinks(destinationCountry, checklist);
 
     return res.status(200).json({ checklist });
   } catch (e: any) {
