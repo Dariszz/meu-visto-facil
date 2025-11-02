@@ -1,0 +1,5 @@
+{
+  "name": "Copy of Copy of Meu Visto Fácil 2",
+  "description": "Uma aplicação com IA que gera checklists de imigração personalizados para brasileiros que planejam se mudar para o exterior, usando a API Gemini do Google.",
+  "requestFramePermissions": []
+}
