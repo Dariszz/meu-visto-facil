@@ -34,13 +34,12 @@ export const ChecklistForm: React.FC<ChecklistFormProps> = ({
           value={destinationCountry}
           onChange={(v) => {
             setDestinationCountry(v || '');
-            // ao trocar de país, limpamos o tipo de visto
             if (visaType) setVisaType('');
           }}
           disabled={isLoading}
         />
 
-        {/* Tipo de visto (preenchido dinamicamente após selecionar país) */}
+        {/* Tipo de visto */}
         <div className="flex flex-col gap-2">
           <label htmlFor="visaType" className="text-sm font-medium text-slate-300">
             Tipo de visto
@@ -67,11 +66,12 @@ export const ChecklistForm: React.FC<ChecklistFormProps> = ({
         </div>
       </div>
 
-      <div className="mt-6 flex flex-col sm:flex-row gap-3">
+      {/* Botão centralizado e responsivo */}
+      <div className="mt-6 flex justify-center">
         <button
           onClick={onGenerate}
           disabled={!destinationCountry || !visaType || isLoading}
-          className="inline-flex justify-center items-center px-6 py-3 rounded-full bg-sky-600 text-white hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:bg-slate-600 disabled:cursor-not-allowed"
+          className="w-full sm:w-auto inline-flex justify-center items-center px-8 md:px-10 py-3 text-base md:text-lg rounded-full bg-sky-600 text-white hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:bg-slate-600 disabled:cursor-not-allowed"
         >
           {isLoading ? 'Gerando…' : 'Gerar checklist'}
         </button>
