@@ -1,6 +1,6 @@
 // api/visa-summary.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getGenAI, extractText, errorRes } from './_gemini';
+import { getGenAI, extractText, errorRes } from './_gemini.js';
 
 function officialDomains(countryName: string): string[] {
   const c = countryName.toLowerCase();

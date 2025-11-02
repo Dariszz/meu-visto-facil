@@ -1,6 +1,6 @@
 // api/fetch-visas.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getGenAI, extractText, stripFences, errorRes } from './_gemini';
+import { getGenAI, extractText, stripFences, errorRes } from './_gemini.js';
 
 const visaListSchemaHint = `
 Responda APENAS em JSON válido no formato:

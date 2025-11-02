@@ -28,9 +28,7 @@ export function extractText(r: any): string {
     // Fallback em candidates
     const c = r?.candidates?.[0]?.content?.parts?.find((p: any) => p?.text)?.text;
     if (typeof c === 'string' && c.trim()) return c;
-  } catch (e) {
-    // continua para o throw abaixo
-  }
+  } catch (_e) {}
   throw new Error('Não foi possível extrair texto da resposta do modelo.');
 }
 

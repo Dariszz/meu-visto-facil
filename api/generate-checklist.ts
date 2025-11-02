@@ -1,6 +1,6 @@
 // api/generate-checklist.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getGenAI, extractText, stripFences, errorRes } from './_gemini';
+import { getGenAI, extractText, stripFences, errorRes } from './_gemini.js';
 
 const jsonShape = `
 Responda APENAS com um JSON válido, sem cercas de código, no formato:
