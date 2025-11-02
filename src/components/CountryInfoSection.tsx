@@ -1,5 +1,4 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import type { Country } from '../content/countryInfo';
 
 interface CountryInfoSectionProps {
