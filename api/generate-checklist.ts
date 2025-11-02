@@ -2,6 +2,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getGenAI, extractText, stripFences, errorRes } from './_gemini.js';
 import { guardLinkIfOfficial } from './_link-guard.js';
+import { enrichChecklistLinks } from './_link-enricher.js';
 
 const jsonShape = `
 Responda APENAS com um JSON válido, sem cercas, no formato:
@@ -29,7 +30,7 @@ function getContextForCountry(countryName: string): string {
   return '';
 }
 
-// Sanitiza os links do checklist para apenas manter oficiais válidos
+// Sanitiza links existentes (só mantém oficiais válidos)
 async function sanitizeChecklistLinks(countryName: string, checklist: any): Promise<any> {
   if (!Array.isArray(checklist?.categories)) return checklist;
   const cats = await Promise.all(
@@ -39,7 +40,6 @@ async function sanitizeChecklistLinks(countryName: string, checklist: any): Prom
         cat.items.map(async (it: any) => {
           if (!it?.link) return it;
           const safe = await guardLinkIfOfficial(countryName, it.link);
-          // Se não for oficial/ok, removemos o link (evita 404 ou phishing)
           return { ...it, link: safe || undefined };
         })
       );
@@ -94,8 +94,11 @@ ${jsonShape}
         : [],
     };
 
-    // HIGIENIZAÇÃO: remove/ajusta links que não sejam oficiais e válidos
+    // 1) manter apenas links oficiais e válidos
     checklist = await sanitizeChecklistLinks(destinationCountry, checklist);
+
+    // 2) enriquecer com links oficiais úteis (somente quando fizer sentido)
+    checklist = await enrichChecklistLinks(destinationCountry, checklist);
 
     return res.status(200).json({ checklist });
   } catch (e: any) {
